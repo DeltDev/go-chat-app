@@ -11,9 +11,12 @@ var r *gin.Engine
 func InitRouter(userHandler *user.Handler) {
 	r = gin.Default()
 
-	r.POST("/signup", userHandler.CreateUser)
-	r.POST("/login", userHandler.Login)
-	r.POST("/logout", userHandler.Logout)
+	api := r.Group("/api/v1/chat")
+	{
+		api.POST("/signup", userHandler.CreateUser)
+		api.POST("/login", userHandler.Login)
+		api.POST("/logout", userHandler.Logout)
+	}
 }
 
 func Start(addr string) error {
