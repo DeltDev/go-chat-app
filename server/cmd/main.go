@@ -6,6 +6,7 @@ import (
 	"server/db"
 	"server/internal/user"
 	"server/router"
+	"server/internal/ws"
 )
 
 func main() {
@@ -17,8 +18,11 @@ func main() {
 	userRep := user.NewRepository(dbConn.GetDB())
 	userSvc := user.NewService(userRep)
 	userHandler := user.NewHandler(userSvc)
-
-	router.InitRouter(userHandler)
+	
+	hub := ws.NewHub()
+	wsHandler := ws.NewHandler(hub)
+	go hub.Run()
+	router.InitRouter(userHandler, wsHandler)
 
 	addr := ":8080"
 	if port := os.Getenv("PORT"); port != "" {
