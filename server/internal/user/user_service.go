@@ -8,32 +8,33 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 )
-const (
-	secretKey = "sample-secret-key"
-)
+
+
 type service struct {
 	Repository
-	timeout time.Duration
+	timeout   time.Duration
+	secretKey string 
 }
-func NewService(repository Repository) Service {
+
+func NewService(repository Repository, secretKey string) Service {
 	return &service{
-		repository, 
+		repository,
 		time.Duration(2) * time.Second,
+		secretKey,
 	}
 }
 
-func (s *service) CreateUser (c context.Context, req *CreateUserReq) (*CreateUserRes, error){
+func (s *service) CreateUser(c context.Context, req *CreateUserReq) (*CreateUserRes, error) {
 	ctx, cancel := context.WithTimeout(c, s.timeout)
 	defer cancel()
 
-	//hash password
 	hashedPassword, err := util.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
 	u := &User{
 		Username: req.Username,
-		Email: req.Email,
+		Email:    req.Email,
 		Password: hashedPassword,
 	}
 	r, err := s.Repository.CreateUser(ctx, u)
@@ -41,18 +42,19 @@ func (s *service) CreateUser (c context.Context, req *CreateUserReq) (*CreateUse
 		return nil, err
 	}
 	res := &CreateUserRes{
-		ID: strconv.Itoa(int(r.ID)),
+		ID:       strconv.Itoa(int(r.ID)),
 		Username: r.Username,
-		Email: r.Email,
+		Email:    r.Email,
 	}
 	return res, nil
 }
 
-type MyJWTClaims struct{
-	ID string `json:"id"`
+type MyJWTClaims struct {
+	ID       string `json:"id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
+
 func (s *service) Login(c context.Context, req *LoginUserReq) (*LoginUserRes, error) {
 	ctx, cancel := context.WithTimeout(c, s.timeout)
 	defer cancel()
@@ -60,26 +62,26 @@ func (s *service) Login(c context.Context, req *LoginUserReq) (*LoginUserRes, er
 	u, err := s.Repository.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, err
-	}	
+	}
 
 	err = util.CheckPassword(req.Password, u.Password)
 
-	if err!= nil{
+	if err != nil {
 		return &LoginUserRes{}, err
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, MyJWTClaims{
-		ID:strconv.Itoa(int(u.ID)),
+		ID:       strconv.Itoa(int(u.ID)),
 		Username: u.Username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:strconv.Itoa(int(u.ID)),
+			Issuer:    strconv.Itoa(int(u.ID)),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		},
 	})
 
-	ss,err := token.SignedString([]byte(secretKey))
+	ss, err := token.SignedString([]byte(s.secretKey))
 
-	if err != nil{
+	if err != nil {
 		return &LoginUserRes{}, err
 	}
 
